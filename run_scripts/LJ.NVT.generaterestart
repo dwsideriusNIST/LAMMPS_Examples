@@ -1,0 +1,77 @@
+# 3d Lennard-Jones NVT
+
+#NOTE: the variable "rho" is read from the command line argument:
+#  E.G., "lmp_serial -in foo -var rho bar"
+#  foo = input filename
+#  bar = input value for variable rho
+
+#Essential definitions
+units           lj                                      #Units type: Lennard-Jones
+atom_style      atomic                                  #Atom Style: Atoms
+
+#Run Parameters
+variable        ext_temp equal 1.50                     #Specify the thermostat Temperature
+variable        Nevery equal 20                         #Specify the distance (in timesteps) between samples for computing ensemble averages
+                                                        #  (Interval between samples in a block)
+variable        Nrepeat equal 50                        #Specify the number of samples per output  of thermodynamic averages
+                                                        #  (Samples per block output)
+variable        Nfreq equal ${Nevery}*${Nrepeat}        #Specify the dump interval (in timesteps)
+                                                        #  (Some people call these blocks)
+variable        nrun equal 1000000                      #Specify the MD run length (in timesteps
+variable        Tdamp equal 0.500                       #Specify the Thermostat damping parameter (in time units ; not timesteps)
+variable        cfg_seed equal 45232                    #Seed integer for generating the initial, random configuration
+variable        vel_seed equal 87287                    #Seed integer for generating the initial, random velocities
+
+#System Size: Set Nmols and density, get volume
+variable        Nmols equal 10000                       #Specify number of LJ molecules
+variable        density equal ${rho}                    #Specify simulation density from a command-line argument
+variable        L equal (${Nmols}/${density})^(1.0/3.0)
+                                                        #Cubic system dimensions selected based on Nmols and density
+
+#System Volume
+boundary        p p p                                   #Specify Periodic boundary conditions at all system boundaries
+region          box block 0.0 ${L} 0.0 ${L} 0.0 ${L}    #Specify a cubic simulation box with dimensions L
+create_box      1 box                                   #Create the box
+create_atoms    1 random ${Nmols} ${cfg_seed} NULL      #Create an initial configuration randomly
+
+#Molecular Model
+# NOTE: This block must be after the "System Volume" section
+pair_style      lj/sf 2.5                               #Pair potential is Lennard-Jones, with linear-force shift tail correction
+                                                        #  Truncation radius is 2.5sigma
+pair_coeff      1 1 1.0 1.0                             #Pure Lennard-Jones, use sigma=1, epsilon=1
+mass            1 1.0                                   #Pure Lennard-Jones, use mass=1
+
+#Neighbor List
+neighbor        0.3 bin                                 #Specify the skin distance (padding beyond the cutoff)
+neigh_modify    delay 0 every 20 check no               #Adjust the default neighbor list:
+                                                        #  (delay 0)
+                                                        #  (every 20)
+                                                        #  (check no)
+#Initial Velocities
+velocity        all create ${ext_temp} ${vel_seed} loop geom
+                                                        #Create an initial velocity distribution using the specified
+                                                        #  external temperature
+
+#Relax the initial configuration
+minimize        1.0E-4 1.0E-6 1000 100000               #Relax the initial configuration and velocities
+                                                        #  Energy tolerance = 1.0E-4
+                                                        #  Force tolerance = 1.0E-6
+                                                        #  Maximum number of iterations = 1000
+                                                        #  Maximum number of force/energy evaluations = 100000
+
+#Ensemble Setup
+fix		1 all nvt temp ${ext_temp} ${ext_temp} ${Tdamp}
+# Previous line specifies: NVT ensemble, thermostatted by Nose-Hoover a chained thermostat, set at temperature $ext_temp
+
+#Output
+variable        InternalEnergy equal epair              #Call the internal energy $epair
+variable        Pressure equal press                    #Call the pressure $press
+variable        Temperature equal temp                  #Call the instantaneous temperature $temp
+fix             2 all ave/time ${Nevery} ${Nrepeat} ${Nfreq} v_Temperature v_InternalEnergy v_Pressure file ave.dens_${rho}.out format %.8g
+thermo          10000                                   #Specify the interval between screen output of thermodynamic averages
+thermo_style    custom step temp epair press            #Format for screen output of thermodynamics
+                                                        #  (MD step, temperature, internal energy, pressure)
+
+#Run it!
+run             ${nrun}                                 #Run the simulation
+write_restart   in.nvt.dens_${rho}                      #Write the ending simulation conditions to a restart file

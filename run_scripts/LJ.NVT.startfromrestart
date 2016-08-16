@@ -1,0 +1,51 @@
+# 3D Lennard-Jones NVT
+
+#NOTES:
+# The variable "rho" is read from the command line argument:
+#  E.G., "lmp_serial -in foo -var rho bar1 -var temp bar2"
+#  foo = input filename
+#  bar1 = input value for variable rho (density)
+#  bar2 = input value for variable temp (temperature)
+# The restart file specifies the following:
+#   System volume, conformation, periodicity
+#   Initial configuration and velocities
+#   The molecular model (i.e., pair potential, molecular topology)
+# The configuration in the restart file is a relaxed configuration
+#   for the temperature at which the configuration was generated (T*=1.50).
+
+read_restart    in.nvt.dens_${rho}               #Specify the LAMMPS restart file
+reset_timestep  0                                #Reset the time step counter to 0
+
+#Run Parameters
+variable        ext_temp equal ${temp}           #Specify the Thermostat Temperature
+variable        Nevery equal 20                  #Specify the distance (in timesteps) between samples for computing ensemble averages
+                                                 #  (Interval between samples in a block)
+variable        Nrepeat equal 50                 #Specify the number of samples per output  of thermodynamic averages
+                                                 #  (Samples per block output)
+variable        Nfreq equal ${Nevery}*${Nrepeat} #Specify the dump interval (in timesteps)
+                                                 #  (Some people call these blocks)
+variable        nequil equal 100000             #Equilibration length (in timesteps)
+variable        nprod  equal 1000000            #Production length (in timesteps)
+variable        nrun equal ${nequil}+${nprod}    #Total run length: equilibration + production (in timesteps)
+variable        Tdamp equal 0.500                #Specify the Thermostat damping parameter (in time units ; not timesteps)
+
+#Neighbor List
+neighbor        0.3 bin                          #Specify the skin distance (padding beyond the cutoff)
+neigh_modify    delay 0 every 20 check no        #Adjust the default neighbor list:
+                                                 #  (delay 0)
+                                                 #  (every 20)
+                                                 #  (check no)
+
+#Ensemble Setup: NVT ensemble, thermostatted by Nose-Hoover a chained thermostat, set at temperature $ext_temp
+fix		1 all nvt temp ${ext_temp} ${ext_temp} ${Tdamp}
+
+#Output
+variable        InternalEnergy equal epair          #Call the internal energy $InternalEnergy
+variable        Pressure equal press                #Call the pressure $Pressure
+variable        Temperature equal temp              #Call the instantaneous temperature $Temperature
+fix             2 all ave/time ${Nevery} ${Nrepeat} ${Nfreq} v_Temperature v_InternalEnergy v_Pressure file ave.dens_${rho}.out format %.8g
+thermo          10000                               #Specify the interval between screen output of thermodynamic averages
+thermo_style    custom step temp epair press        #Print the timestep, temperature, internal energy, and pressure to screen
+
+#Run it!
+run             ${nrun}                          #Run the simulation
