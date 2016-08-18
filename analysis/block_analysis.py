@@ -89,8 +89,8 @@ def main():
     print '  Stated uncertainty is the standard error of the thermodynamic property'
     print ''
     for (i,column) in enumerate(columns): 
-        print "{:<15}".format(column), "{:15.10f}".format(LAMMPS_data[i].ensemble_avg()), ' +/- ', \
-            "{:12.10f}".format(LAMMPS_data[i].block_avg(blocks)[1])
+        print "{:<15}".format(column), "{:8.5f}".format(LAMMPS_data[i].ensemble_avg()), ' +/- ', \
+            "{:8.5f}".format(LAMMPS_data[i].block_avg(blocks)[1])
 
 def parse_commandline_opts():
     op = optparse.OptionParser()
