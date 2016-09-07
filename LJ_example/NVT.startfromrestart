@@ -40,12 +40,12 @@ neigh_modify    delay 0 every 20 check no        #Adjust the default neighbor li
 fix		1 all nvt temp ${ext_temp} ${ext_temp} ${Tdamp}
 
 #Output
-variable        InternalEnergy equal epair          #Call the internal energy $InternalEnergy
+variable        PotentialEnergy equal epair         #Call the intermolecular potential energy $PotentialEnergy
 variable        Pressure equal press                #Call the pressure $Pressure
 variable        Temperature equal temp              #Call the instantaneous temperature $Temperature
-fix             2 all ave/time ${Nevery} ${Nrepeat} ${Nfreq} v_Temperature v_InternalEnergy v_Pressure file ave.dens_${rho}.out format %.8g
+fix             2 all ave/time ${Nevery} ${Nrepeat} ${Nfreq} v_Temperature v_PotentialEnergy v_Pressure file ave.dens_${rho}.out format %.8g
 thermo          10000                               #Specify the interval between screen output of thermodynamic averages
-thermo_style    custom step temp epair press        #Print the timestep, temperature, internal energy, and pressure to screen
+thermo_style    custom step temp epair press        #Print the timestep, temperature, potential energy, and pressure to screen
 
 #Run it!
 run             ${nrun}                          #Run the simulation
