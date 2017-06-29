@@ -5,6 +5,7 @@ http://www.nist.gov/programs-projects/nist-standard-reference-simulation-website
 
 Repo contains:
   Sample configurations of Lennard-Jones fluids
+  Sample configurations of SPC/E Water
   Run scripts to generate thermodynamic properties of Lennard-Jones fluids
   Python scripts for post-processing time-dependent output from LAMMPS to generate
    thermodynamic ensemble averages and uncertainty estimates
