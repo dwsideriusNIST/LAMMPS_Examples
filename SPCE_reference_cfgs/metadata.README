@@ -1,0 +1,7 @@
+The enclosed file (spce_sample_config_periodic#.LAMMPS) is a text file containing a single configuration of SPC/E Molecules, for input to the LAMMPS simulation engine.
+
+The file is structured according to LAMMPS specifications for an input configuration per instructions at http://lammps.sandia.gov/doc/read_data.html
+
+All coordinates and dimensions are given in Angstroms (1.0e-10 meters)
+
+All point charges are given in units of Elementary charge (1.6021766208e-19 coulombs)
