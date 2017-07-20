@@ -88,4 +88,4 @@ thermo          1000                                 #Specify the interval betwe
 thermo_style    custom step temp density epair press #Format for screen output of thermodynamics
                                                      #  (MD step, temperature, internal energy, pressure)
 #Run it!
-run		200000
+run		60000
