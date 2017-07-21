@@ -31,7 +31,7 @@ kspace_modify   kmax/ewald 5 5 5                     #kx ky kz = number of kspac
 						     # and the desired precision
 
 pair_coeff      1 1 0.15539421659476232 3.16555789   #Oxygen-Oxygen parameters
-pair_coeff	* 2 0.0000 0.0000		     #Hydrogen-Hydrogen parameters (none)
+pair_coeff	* 2 0.0000 0.0000		     #Hydrogen-(anything) parameters (none)
 
 bond_style	harmonic   			     #Sets the bond type as harmonic
 angle_style	harmonic			     #Sets the triplet bond type as harmonic
