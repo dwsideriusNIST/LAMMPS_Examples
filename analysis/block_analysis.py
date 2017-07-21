@@ -52,7 +52,11 @@ class LAMMPS_Thermo(object):
                 sum = sum + bsum ; sumsq = sumsq + (bsum**2) ; count = count + 1
                 bsum = 0.0
         avg = sum / float(count) ; sq_avg = sumsq / float(count)
-        return avg, math.sqrt((sq_avg-(avg**2))/float(count))
+        if np.abs(sq_avg - avg**2)/sq_avg < 1.0e-10:
+            #This handles cases where the column is invariant
+            return avg, 0.0 
+        else:
+            return avg, np.sqrt((sq_avg-(avg**2))/float(count))
 
 def main():
     #Parse Command-line Arguments
@@ -91,7 +95,7 @@ def main():
     for (i,column) in enumerate(columns): 
         print "{:<15}".format(column), "{:8.5f}".format(LAMMPS_data[i].ensemble_avg()), ' +/- ', \
             "{:8.5f}".format(LAMMPS_data[i].block_avg(blocks)[1])
-
+        
 def parse_commandline_opts():
     op = optparse.OptionParser()
     op.add_option("-f", "--file",     help="Specify the file containing LAMMPS time-series data")
