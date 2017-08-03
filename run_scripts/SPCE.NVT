@@ -1,0 +1,95 @@
+# SPC/E Water NVT
+
+#NOTES:
+# The variable "infile" is read from the command line argument:
+#  E.G., "lmp_serial -in foo -var infile bar1 -var temp bar2
+#  foo = input filename
+#  bar1 = input value for variable infile (Input configuration and molecular topology)
+#  bar2 = put value for variable temp (temperature, in Kelvin units)
+# The input file specifies the following:
+#   System volume, conformation, atom types, bond types, angles types
+#   Initial configuration
+#   The molecular topology
+# The configuration in the restart file is not assumed to be a relaxed configuration
+
+units		real	                             #Angstroms, g/mol, etc.
+atom_style	full                                 #Molecule + charge
+
+#timestep	2.0				     #Set the integrator time step (default = 1.0fs for real units)
+
+boundary        p p p				     #Periodic Boundaries
+read_data       ${infile}
+
+replicate	1 1 1				     #cell replication (none = 1 1 1)
+
+variable        dt equal dt
+variable        ext_temp equal ${temp}
+variable        Tdamp equal 100.0*${dt}		     #units are time units, LAMMPS suggestion is 100 time steps 
+		      	    			     #(e.g. 50fs if time step is 0.5fs)
+
+
+pair_style	lj/cut/coul/long 10.0 10.0           #LJ with 10.0ang cutoff, Coulomb with 10.0ang cutoff
+pair_modify     tail yes			     #Analytic Long-range Tail corrections, for the LJ interactions
+kspace_style	pppm 1.0e-4                          #PPPM Ewald, relative error in forces
+
+pair_coeff      1 1 0.15539421659476232 3.16555789   #Oxygen-Oxygen LJ(dispersion) parameters
+pair_coeff	* 2 0.0000 0.0000		     #Hydrogen-(anything) LJ(disperson) parameters (none for SPC/E)
+
+bond_style	harmonic   			     #Sets the bond type as harmonic
+angle_style	harmonic			     #Sets the triplet bond type as harmonic
+dihedral_style	none				     #SPC/e has no dihedrals (quadruplets)
+improper_style	none				     #SPC/e has no improper quadruplets
+
+bond_coeff	1 5000.00 1.000                      #Oxygen-Hydrogen bond parameters (1~ang)
+angle_coeff	1 500.0 109.47			     #Hydrogen-Oxygen-Hydrogen angle parameters (angle=109.47deg)
+		  				     #NOTE: harmonic moduli do not matter, since the rigid bonds are preserved by SHAKE
+						     #NOTE: the moduli do affect the relaxation step, though.
+
+#Neighbor List Parameters
+#neighbor        2.0 bin			     #Skin (default = 2.0 bin for real units)
+
+#Relax the initial configuration
+minimize        1.0e-4 1.0e-6 1000 100000
+
+#Create initial velocity distribution
+velocity	all create ${ext_temp} 432567 dist uniform
+		      	    	      	      	     #Set uniform distribution with T = {ext_temp}
+		      	    	      	      	     #Seed integer = 432567
+						     #dist uniform is the LAMMPS Default
+						     #NOTE: The initial (kinetic) temperature will differ from thermostat, 
+						     #due to use of SHAKE, but it will equilibrate quickly.
+
+#Reset the time step counter
+reset_timestep  0                                    #Reset the time step counter to 0
+
+#SHAKE Parameters to preserve bondlengths
+fix		1 all shake 0.0001 20 0 b 1 a 1      #0.0001 = accuracy tolerance of SHAKE
+		      	    	      	      	     #20 = max number of iterations in each SHAKE solution
+		      	    	      	      	     #0 = print SHAKE statistics every "this many" timesteps (0 = never)
+		      	    	      	      	     #b 1 = 1 bond type
+		      	    	      	      	     #a 1 = 1 angle type
+
+#Ensemble set-up: NVT ensemble, thermostatted by Nose-Hoover a chained thermostat, set at temperature $ext_temp
+fix		2 all nvt temp ${ext_temp} ${ext_temp} ${Tdamp}
+		      	       		   	     #start temperature = ext_temp
+		      	       		   	     #end temperature = ext_temp
+		      	    	      	      	     #Tdamp (in time units, fs)
+
+#Output Style
+variable        Nevery equal 20                      #Specify the distance (in timesteps) between samples for computing ensemble aver$
+                                                     #  (Interval between samples in a block)
+variable        Nrepeat equal 50                     #Specify the number of samples per output  of thermodynamic averages
+                                                     #  (Samples per block output)
+variable        Nfreq equal ${Nevery}*${Nrepeat}     #Specify the dump interval (in timesteps)
+                                                     #  (Some people call these blocks)
+variable        PotentialEnergy equal epair          #Call the intermolecular potential energy $PotentialEnergy
+variable        Pressure equal press                 #Call the pressure $Pressure
+variable        Temperature equal temp               #Call the instantaneous temperature $Temperature
+variable        Density equal density                #Call the instantaneous density $Density (will not change for NVT)
+
+fix             3 all ave/time ${Nevery} ${Nrepeat} ${Nfreq} v_Temperature v_PotentialEnergy v_Pressure file ave.out format %.8g
+thermo          1000                                 #Specify the interval between screen output of thermodynamic averages
+thermo_style    custom step temp density epair press #Format for screen output of thermodynamics
+                                                     #  (MD step, temperature, internal energy, pressure)
+#Run it!
+run             1100000
