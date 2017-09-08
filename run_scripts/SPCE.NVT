@@ -48,9 +48,6 @@ angle_coeff	1 500.0 109.47			     #Hydrogen-Oxygen-Hydrogen angle parameters (an
 #Neighbor List Parameters
 #neighbor        2.0 bin			     #Skin (default = 2.0 bin for real units)
 
-#Relax the initial configuration
-minimize        1.0e-4 1.0e-6 1000 100000
-
 #Create initial velocity distribution
 velocity	all create ${ext_temp} 432567 dist uniform
 		      	    	      	      	     #Set uniform distribution with T = {ext_temp}
