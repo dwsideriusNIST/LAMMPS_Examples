@@ -48,8 +48,7 @@ improper_style	none				     #TraPPE N2 has no improper quadruplets
 
 bond_coeff	1 5000.00 0.550                      #Nitrogen-Ghost bond parameters (0.55~ang)
 angle_coeff	1 500.0 180.00			     #Nitrogen-Ghost-Nitrogen angle parameters (angle=180.0deg)
-		  				     #NOTE: harmonic moduli do not matter, since the rigid bonds are preserved by SHAKE
-						     #NOTE: the moduli do affect the relaxation step, though.
+		  				     #NOTE: harmonic moduli do not matter, since the rigid bonds are preserved by rigid fix
 
 group ghost    type 1
 group nitrogen type 2				     #Create a group called "nitrogen" that includes only the nitrogen atoms
