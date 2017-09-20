@@ -1,0 +1,252 @@
+LAMMPS (31 Mar 2017)
+# TraPPE Carbon Dioxide NVT
+
+#NOTES:
+# The variable "infile" is read from the command line argument:
+#  E.G., "lmp_serial -in foo -var infile bar1 -var temp bar2
+#  foo = input filename
+#  bar1 = input value for variable infile (Input configuration and molecular topology)
+#  bar2 = put value for variable temp (temperature, in Kelvin units)
+# The input file specifies the following:
+#   System volume, conformation, atom types, bond types, angles types
+#   Initial configuration
+#   The molecular topology
+# The configuration in the restart file is not assumed to be a relaxed configuration
+
+units		real	                             #Angstroms, g/mol, etc.
+atom_style	full                                 #Molecule + charge
+
+#timestep	2.0				     #Set the integrator time step (default = 1.0fs for real units)
+
+boundary        p p p				     #Periodic Boundaries
+read_data       ${infile}
+read_data       TraPPECO2_N1000_config.dens_18.0molL.cfg.lammps
+  orthogonal box = (0 0 0) to (45.1848 45.1848 45.1848)
+  2 by 2 by 2 MPI processor grid
+  reading atoms ...
+  3000 atoms
+  scanning bonds ...
+  2 = max bonds/atom
+  scanning angles ...
+  1 = max angles/atom
+  reading bonds ...
+  2000 bonds
+  reading angles ...
+  1000 angles
+  2 = max # of 1-2 neighbors
+  1 = max # of 1-3 neighbors
+  1 = max # of 1-4 neighbors
+  2 = max # of special neighbors
+
+replicate	1 1 1				     #cell replication (none = 1 1 1)
+  orthogonal box = (0 0 0) to (45.1848 45.1848 45.1848)
+  2 by 2 by 2 MPI processor grid
+  3000 atoms
+  2000 bonds
+  1000 angles
+  2 = max # of 1-2 neighbors
+  1 = max # of 1-3 neighbors
+  1 = max # of 1-4 neighbors
+  2 = max # of special neighbors
+
+variable        dt equal dt
+variable        ext_temp equal ${temp}
+variable        ext_temp equal 300.0
+variable        Tdamp equal 100.0*${dt}		     #units are time units, LAMMPS suggestion is 100 time steps
+variable        Tdamp equal 100.0*1		     
+		      	    			     #(e.g. 50fs if time step is 0.5fs)
+
+
+pair_style	lj/cut/coul/long 15.0 15.0           #LJ with 15.0ang cutoff, Coulomb with 15.0ang cutoff
+pair_modify     tail yes			     #Analytic Long-range Tail corrections, for the LJ interactions
+bond_style      harmonic
+angle_style     harmonic
+kspace_style	pppm 1.0e-4                          #PPPM Ewald, relative error in forces
+#kspace_style	ewald 1.0e-4                         #Conventional Ewald method , relative error in forces = 1.0e-04
+                                                     #kspace uses tinfoil/conducting boundary conditions by default
+						     #NOTE: This script lets LAMMPS set the Ewald damping parameter
+						     # and number of k-vectors automatically.
+group           carbon type 1
+1000 atoms in group carbon
+group           oxygen type 2
+2000 atoms in group oxygen
+
+pair_coeff      1 1 0.053654828567 2.8000            #Carbon-Carbon LJ (dispersion) parameters
+pair_coeff	2 2 0.156990053954 3.05000           #Oxygen-Oxygen LJ (dispersion) parameters
+pair_coeff	1 2 0.091778398502 2.9250            #Carbon-Oxygen LJ (dispersion) parameters [Lorentz-Berthelot Mixing Rule]
+
+bond_style	harmonic   			     #Sets the bond type as harmonic
+angle_style	harmonic			     #Sets the triplet bond type as harmonic
+dihedral_style	none				     #TraPPE CO2 has no dihedrals (quadruplets)
+improper_style	none				     #TraPPE CO2 has no improper quadruplets
+
+bond_coeff	1 5000.00 1.160                      #Oxygen-Carbon bond parameters (1.160~ang)
+angle_coeff	1 500.0 180.00			     #Oxygen-Carbon-Oxygen angle parameters (angle=180.0deg)
+		  				     #NOTE: harmonic moduli do not matter, since the rigid bonds are preserved by rigid fix
+
+#Neighbor List Parameters
+#neighbor        2.0 bin			     #Skin (default = 2.0 bin for real units)
+#neigh_modify    delay 1 every 1 check no
+                                                     #  delay N =  never delay until at least N steps after previous build
+                                                     #  every N =  build list every N steps
+                                                     #  check no = build whenever delay/every criteria are met
+                                                     #  check yes = build whenever delay/every criteria are met and atom moved > skin/2
+
+#Create initial velocity distribution
+velocity all create ${ext_temp} 432567 dist uniform
+velocity all create 300 432567 dist uniform
+		      	    	      	      	     #Set uniform distribution with T = {ext_temp}
+		      	    	      	      	     #Seed integer = 432567
+						     #dist uniform is the LAMMPS Default
+
+#Reset the time step counter
+reset_timestep  0                                    #Reset the time step counter to 0
+
+#Ensemble set-up: NVT ensemble, thermostatted by Nose-Hoover a chained thermostat, set at temperature $ext_temp
+fix             2 all rigid/nvt molecule temp ${ext_temp} ${ext_temp} ${Tdamp}
+fix             2 all rigid/nvt molecule temp 300 ${ext_temp} ${Tdamp}
+fix             2 all rigid/nvt molecule temp 300 300 ${Tdamp}
+fix             2 all rigid/nvt molecule temp 300 300 100
+1000 rigid bodies with 3000 atoms
+		      	       		   	     #start temperature = ext_temp
+		      	       		   	     #end temperature = ext_temp
+		      	    	      	      	     #Tdamp (in time units, fs)
+
+#Output Style
+variable        Nevery equal 20                      #Specify the distance (in timesteps) between samples for computing ensemble aver$
+                                                     #  (Interval between samples in a block)
+variable        Nrepeat equal 50                     #Specify the number of samples per output  of thermodynamic averages
+                                                     #  (Samples per block output)
+variable        Nfreq equal ${Nevery}*${Nrepeat}     #Specify the dump interval (in timesteps)
+variable        Nfreq equal 20*${Nrepeat}     
+variable        Nfreq equal 20*50     
+                                                     #  (Some people call these blocks)
+variable        PotentialEnergy equal epair          #Call the intermolecular potential energy $PotentialEnergy
+variable        Pressure equal press                 #Call the pressure $Pressure
+variable        Temperature equal temp               #Call the instantaneous temperature $Temperature
+variable        Density equal density                #Call the instantaneous density $Density (will not change for NVT)
+
+fix             3 all ave/time ${Nevery} ${Nrepeat} ${Nfreq} v_Temperature v_Density v_PotentialEnergy v_Pressure file dens_18.0molL format %.8g
+fix             3 all ave/time 20 ${Nrepeat} ${Nfreq} v_Temperature v_Density v_PotentialEnergy v_Pressure file dens_18.0molL format %.8g
+fix             3 all ave/time 20 50 ${Nfreq} v_Temperature v_Density v_PotentialEnergy v_Pressure file dens_18.0molL format %.8g
+fix             3 all ave/time 20 50 1000 v_Temperature v_Density v_PotentialEnergy v_Pressure file dens_18.0molL format %.8g
+thermo          1000                                 #Specify the interval between screen output of thermodynamic averages
+#thermo  100
+thermo_style    custom step temp density epair press #Format for screen output of thermodynamics
+                                                     #  (MD step, temperature, internal energy, pressure)
+#Run it!
+run		60000
+PPPM initialization ...
+WARNING: Using 12-bit tables for long-range coulomb (../kspace.cpp:321)
+  G vector (1/distance) = 0.173731
+  grid = 15 15 15
+  stencil order = 5
+  estimated absolute RMS force accuracy = 0.0120402
+  estimated relative force accuracy = 3.62588e-05
+  using double precision FFTs
+  3d grid and FFT values/proc = 2197 512
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 17
+  ghost atom cutoff = 17
+  binsize = 8.5, bins = 6 6 6
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair lj/cut/coul/long, perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/3d/newton
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 8.716 | 8.723 | 8.728 Mbytes
+Step Temp Density E_pair Press 
+       0    298.96586     0.792189   -1524.6068    59.101893 
+    1000    304.44391     0.792189   -2104.8878    140.86875 
+    2000    304.11699     0.792189   -2143.7662    126.47165 
+    3000     306.5023     0.792189    -2130.616    209.75618 
+    4000    309.79177     0.792189   -2121.0542    242.07953 
+    5000    305.76538     0.792189   -2121.3224    154.80476 
+    6000    308.07957     0.792189    -2151.667    126.45797 
+    7000    296.00969     0.792189   -2152.9832   -126.25719 
+    8000    297.21834     0.792189   -2190.3387   -7.5119747 
+    9000    288.56559     0.792189   -2164.9782   -2.2441903 
+   10000    288.45958     0.792189   -2137.7178    34.979529 
+   11000    288.57526     0.792189   -2135.7686    19.384761 
+   12000    295.96857     0.792189   -2185.5326    111.57978 
+   13000    301.41956     0.792189   -2157.8495    68.766508 
+   14000    302.67017     0.792189     -2151.69     57.20732 
+   15000     305.4797     0.792189   -2159.8703    21.981454 
+   16000    301.68934     0.792189   -2120.0653    134.11544 
+   17000     304.3012     0.792189   -2153.4165    24.381211 
+   18000    293.61072     0.792189   -2098.9233    135.89712 
+   19000    294.15747     0.792189   -2145.7954    64.062182 
+   20000     305.0752     0.792189   -2131.3964    59.364546 
+   21000    304.51882     0.792189   -2206.2803    11.361225 
+   22000    304.75532     0.792189   -2182.5934    50.363136 
+   23000    287.25802     0.792189   -2142.7692     86.93695 
+   24000    299.92088     0.792189   -2187.3464   -25.655974 
+   25000    304.47116     0.792189   -2155.5538    143.91224 
+   26000    306.14412     0.792189   -2171.3239    135.03324 
+   27000    296.47464     0.792189   -2173.4999    243.45465 
+   28000    303.10001     0.792189   -2214.8966   -66.121744 
+   29000    290.87749     0.792189   -2179.2101   -3.9814992 
+   30000    296.90552     0.792189   -2168.4486    97.830001 
+   31000      291.701     0.792189   -2162.4503    17.874533 
+   32000    291.56528     0.792189    -2157.309    77.061575 
+   33000    299.84119     0.792189   -2166.0937    -58.59528 
+   34000    302.53423     0.792189   -2157.9617     44.55188 
+   35000    294.72175     0.792189   -2148.5861    76.726735 
+   36000    297.39866     0.792189   -2150.0664    57.779719 
+   37000    300.47541     0.792189   -2166.9827    102.76013 
+   38000    291.42027     0.792189   -2186.2966     128.6873 
+   39000     306.6809     0.792189   -2174.8364   -13.483871 
+   40000    317.46688     0.792189   -2143.6343    149.71133 
+   41000    305.47425     0.792189   -2163.5955   -9.6936293 
+   42000    305.78478     0.792189   -2131.2253    147.89802 
+   43000    294.38193     0.792189   -2142.7016    79.929297 
+   44000    307.09787     0.792189    -2162.513    113.87563 
+   45000    302.46059     0.792189   -2147.1171    2.9708966 
+   46000    303.28606     0.792189   -2151.7678    41.855885 
+   47000    296.08224     0.792189   -2170.2382    23.402116 
+   48000    295.17105     0.792189   -2166.8143   -149.95982 
+   49000    305.53053     0.792189   -2176.7497   -17.306228 
+   50000    305.19418     0.792189   -2105.1981    147.69978 
+   51000    302.95763     0.792189   -2116.2427     204.8553 
+   52000    297.67011     0.792189   -2146.9635    107.61609 
+   53000    299.10347     0.792189   -2130.7108    215.87602 
+   54000    304.78199     0.792189   -2103.2217    136.67119 
+   55000    308.64625     0.792189   -2154.1864    170.50145 
+   56000    301.29156     0.792189   -2141.5842    11.146669 
+   57000     300.2578     0.792189    -2162.812   -41.690477 
+   58000    293.63221     0.792189   -2143.8367     90.42213 
+   59000    292.21417     0.792189   -2175.9081    91.719063 
+   60000    299.52571     0.792189   -2127.9259    27.239339 
+Loop time of 314.483 on 8 procs for 60000 steps with 3000 atoms
+
+Performance: 16.484 ns/day, 1.456 hours/ns, 190.789 timesteps/s
+100.0% CPU use with 8 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 190.81     | 198.47     | 210.94     |  54.2 | 63.11
+Bond    | 0.98929    | 1.0308     | 1.0726     |   2.5 |  0.33
+Kspace  | 41.749     | 54.338     | 61.765     | 103.1 | 17.28
+Neigh   | 3.9642     | 3.9723     | 3.9844     |   0.4 |  1.26
+Comm    | 18.567     | 18.992     | 19.251     |   5.1 |  6.04
+Output  | 0.004326   | 0.0052315  | 0.005397   |   0.5 |  0.00
+Modify  | 35.677     | 35.895     | 36.224     |   3.0 | 11.41
+Other   |            | 1.777      |            |       |  0.57
+
+Nlocal:    375 ave 415 max 352 min
+Histogram: 2 1 2 0 0 1 1 0 0 1
+Nghost:    5553 ave 5655 max 5436 min
+Histogram: 2 0 0 1 0 0 3 0 0 2
+Neighs:    125520 ave 137020 max 117878 min
+Histogram: 2 1 0 2 1 0 0 0 1 1
+
+Total # of neighbors = 1004163
+Ave neighs/atom = 334.721
+Ave special neighs/atom = 2
+Neighbor list builds = 877
+Dangerous builds = 0
+Total wall time: 0:05:14
