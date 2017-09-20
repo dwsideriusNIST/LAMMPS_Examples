@@ -1,0 +1,97 @@
+# TraPPE Nitrogen NVT
+
+#NOTES:
+# The variable "infile" is read from the command line argument:
+#  E.G., "lmp_serial -in foo -var infile bar1 -var temp bar2
+#  foo = input filename
+#  bar1 = input value for variable infile (Input configuration and molecular topology)
+#  bar2 = put value for variable temp (temperature, in Kelvin units)
+# The input file specifies the following:
+#   System volume, conformation, atom types, bond types, angles types
+#   Initial configuration
+#   The molecular topology
+# The configuration in the restart file is not assumed to be a relaxed configuration
+
+units		real	                             #Angstroms, g/mol, etc.
+atom_style	full                                 #Molecule + charge
+
+#timestep	2.0				     #Set the integrator time step (default = 1.0fs for real units)
+
+boundary        p p p				     #Periodic Boundaries
+read_data       ${infile}
+
+replicate	1 1 1				     #cell replication (none = 1 1 1)
+
+variable        dt equal dt
+variable        ext_temp equal ${temp}
+variable        Tdamp equal 100.0*${dt}		     #units are time units, LAMMPS suggestion is 100 time steps 
+		      	    			     #(e.g. 50fs if time step is 0.5fs)
+
+
+pair_style	lj/cut/coul/long 15.0 15.0           #LJ with 15.0ang cutoff, Coulomb with 15.0ang cutoff
+pair_modify     tail yes			     #Analytic Long-range Tail corrections, for the LJ interactions
+bond_style      harmonic
+angle_style     harmonic
+kspace_style	pppm 1.0e-4                          #PPPM Ewald, relative error in forces
+#kspace_style	ewald 1.0e-4                         #Conventional Ewald method , relative error in forces = 1.0e-04
+                                                     #kspace uses tinfoil/conducting boundary conditions by default
+						     #NOTE: This script lets LAMMPS set the Ewald damping parameter
+						     # and number of k-vectors automatically.
+
+pair_coeff      * 1 0.0000 0.0000                    #Ghost-(anything) LJ (dispersion) parameters
+pair_coeff	2 2 0.07153934924399673 3.31000      #Nitrogen-Nitrogen LJ (dispersion) parameters
+
+bond_style	harmonic   			     #Sets the bond type as harmonic
+angle_style	harmonic			     #Sets the triplet bond type as harmonic
+dihedral_style	none				     #TraPPE N2 has no dihedrals (quadruplets)
+improper_style	none				     #TraPPE N2 has no improper quadruplets
+
+bond_coeff	1 5000.00 0.550                      #Nitrogen-Ghost bond parameters (0.55~ang)
+angle_coeff	1 500.0 180.00			     #Nitrogen-Ghost-Nitrogen angle parameters (angle=180.0deg)
+		  				     #NOTE: harmonic moduli do not matter, since the rigid bonds are preserved by rigid fix
+
+group ghost    type 1
+group nitrogen type 2				     #Create a group called "nitrogen" that includes only the nitrogen atoms
+
+#Neighbor List Parameters
+#neighbor        2.0 bin			     #Skin (default = 2.0 bin for real units)
+#neigh_modify    delay 1 every 1 check no
+                                                     #  delay N =  never delay until at least N steps after previous build
+                                                     #  every N =  build list every N steps
+                                                     #  check no = build whenever delay/every criteria are met
+                                                     #  check yes = build whenever delay/every criteria are met and atom moved > skin/2
+
+#Create initial velocity distribution
+velocity nitrogen create ${ext_temp} 432567 dist uniform
+	 	  	 	     	    	     #Only give velocities to the atomic nitrogens
+		      	    	      	      	     #Set uniform distribution with T = {ext_temp}
+		      	    	      	      	     #Seed integer = 432567
+						     #dist uniform is the LAMMPS Default
+
+#Reset the time step counter
+reset_timestep  0                                    #Reset the time step counter to 0
+
+#Ensemble set-up: NVT ensemble, thermostatted by Nose-Hoover a chained thermostat, set at temperature $ext_temp
+fix             2 all rigid/nvt molecule temp ${ext_temp} ${ext_temp} ${Tdamp}
+		      	       		   	     #start temperature = ext_temp
+		      	       		   	     #end temperature = ext_temp
+		      	    	      	      	     #Tdamp (in time units, fs)
+
+#Output Style
+variable        Nevery equal 20                      #Specify the distance (in timesteps) between samples for computing ensemble aver$
+                                                     #  (Interval between samples in a block)
+variable        Nrepeat equal 50                     #Specify the number of samples per output  of thermodynamic averages
+                                                     #  (Samples per block output)
+variable        Nfreq equal ${Nevery}*${Nrepeat}     #Specify the dump interval (in timesteps)
+                                                     #  (Some people call these blocks)
+variable        PotentialEnergy equal epair          #Call the intermolecular potential energy $PotentialEnergy
+variable        Pressure equal press                 #Call the pressure $Pressure
+variable        Temperature equal temp               #Call the instantaneous temperature $Temperature
+variable        Density equal density                #Call the instantaneous density $Density (will not change for NVT)
+
+fix             3 all ave/time ${Nevery} ${Nrepeat} ${Nfreq} v_Temperature v_Density v_PotentialEnergy v_Pressure file ave.dens_22.0molL.out format %.8g
+thermo          1000                                 #Specify the interval between screen output of thermodynamic averages
+thermo_style    custom step temp density epair press #Format for screen output of thermodynamics
+                                                     #  (MD step, temperature, internal energy, pressure)
+#Run it!
+run             60000
