@@ -88,7 +88,7 @@ variable        Pressure equal press                 #Call the pressure $Pressur
 variable        Temperature equal temp               #Call the instantaneous temperature $Temperature
 variable        Density equal density                #Call the instantaneous density $Density (will not change for NVT)
 
-fix             3 all ave/time ${Nevery} ${Nrepeat} ${Nfreq} v_Temperature v_Density v_PotentialEnergy v_Pressure file dens_18.0molL format %.8g
+fix             3 all ave/time ${Nevery} ${Nrepeat} ${Nfreq} v_Temperature v_Density v_PotentialEnergy v_Pressure file ave.dens_18.0molL.out format %.8g
 thermo          1000                                 #Specify the interval between screen output of thermodynamic averages
 #thermo  100
 thermo_style    custom step temp density epair press #Format for screen output of thermodynamics
