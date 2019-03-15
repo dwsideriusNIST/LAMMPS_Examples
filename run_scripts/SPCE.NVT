@@ -59,19 +59,18 @@ velocity	all create ${ext_temp} 432567 dist uniform
 #Reset the time step counter
 reset_timestep  0                                    #Reset the time step counter to 0
 
-#SHAKE Parameters to preserve bondlengths
-fix		1 all shake 0.0001 20 0 b 1 a 1      #0.0001 = accuracy tolerance of SHAKE
-		      	    	      	      	     #20 = max number of iterations in each SHAKE solution
-		      	    	      	      	     #0 = print SHAKE statistics every "this many" timesteps (0 = never)
-		      	    	      	      	     #b 1 = 1 bond type
-		      	    	      	      	     #a 1 = 1 angle type
-
 #Ensemble set-up: NVT ensemble, thermostatted by Nose-Hoover a chained thermostat, set at temperature $ext_temp
-fix		2 all nvt temp ${ext_temp} ${ext_temp} ${Tdamp}
+fix		1 all nvt temp ${ext_temp} ${ext_temp} ${Tdamp}
 		      	       		   	     #start temperature = ext_temp
 		      	       		   	     #end temperature = ext_temp
 		      	    	      	      	     #Tdamp (in time units, fs)
 
+#SHAKE Parameters to preserve bondlengths -- This fix has to come after the integrator NVE or NVT or NPT
+fix		2 all shake 0.0001 20 0 b 1 a 1      #0.0001 = accuracy tolerance of SHAKE
+		      	    	      	      	     #20 = max number of iterations in each SHAKE solution
+		      	    	      	      	     #0 = print SHAKE statistics every "this many" timesteps (0 = never)
+		      	    	      	      	     #b 1 = 1 bond type
+		      	    	      	      	     #a 1 = 1 angle type
 #Output Style
 variable        Nevery equal 20                      #Specify the distance (in timesteps) between samples for computing ensemble aver$
                                                      #  (Interval between samples in a block)
