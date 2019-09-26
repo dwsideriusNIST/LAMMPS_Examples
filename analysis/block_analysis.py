@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 #------------SOFTWARE DISCLAIMER AND REDISTRIBUTION CONDITIONS----------------
 #   This software was developed at the National Institute of Standards and
@@ -43,7 +43,7 @@ class LAMMPS_Thermo(object):
         return np.mean(self.timeseries)
     def block_avg(self,blocks):
         block_size = int( float(len(self.timeseries)) / float(blocks) )
-        #print block_size
+        #print(block_size)
         sumsq = 0.0; sum = 0.0; bsum = 0.0; count = 0
         for (i,entry) in enumerate(self.timeseries):
             bsum = bsum + entry
@@ -86,15 +86,15 @@ def main():
     delta_timestep = timestep[1] - timestep[0]
 
     #Output Thermodynamic Averages and Statistical Uncertain
-    print 'Thermodynamic Ensemble Averages from: '+filename
-    print '  Discarded Timesteps:    '+str(min_timestep)
-    print '  Number of Blocks:       '+str(blocks)
-    print '  Block size (timesteps): '+str(len(timestep)/blocks*delta_timestep)
-    print '  Stated uncertainty is the standard error of the thermodynamic property'
-    print ''
+    print('Thermodynamic Ensemble Averages from: '+filename)
+    print('  Discarded Timesteps:    '+str(min_timestep))
+    print('  Number of Blocks:       '+str(blocks))
+    print('  Block size (timesteps): '+str(len(timestep)/blocks*delta_timestep))
+    print('  Stated uncertainty is the standard error of the thermodynamic property')
+    print('')
     for (i,column) in enumerate(columns): 
-        print format(column, "<15"), format(LAMMPS_data[i].ensemble_avg(), "+8.4E"), ' +/- ', \
-            format(LAMMPS_data[i].block_avg(blocks)[1], "+8.4E")
+        print(format(column, "<15"), format(LAMMPS_data[i].ensemble_avg(), "+8.4E"), ' +/- ', \
+            format(LAMMPS_data[i].block_avg(blocks)[1], "+8.4E") )
         
 def parse_commandline_opts():
     op = optparse.OptionParser()
