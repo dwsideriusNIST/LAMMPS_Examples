@@ -1,0 +1,67 @@
+# SPC/E Water Energy Reference Calculations
+
+#NOTES:
+# The variable "infile" is read from the command line argument:
+#  E.G., "lmp_serial -in foo -var infile bar
+#  foo = input filename
+#  bar = input value for variable infile (Input configuration and molecular topology)
+
+units		real	                             #Angstroms, g/mol, etc.
+atom_style	full                                 #Molecule + charge
+
+boundary        p p p				     #Periodic Boundaries
+read_data       ${infile}                            #Input configuration
+
+replicate	1 1 1				     #cell replication (none = 1 1 1)
+
+#pair_style	lj/cut/coul/long 9.0 9.0             #LJ with 9.0ang cutoff, Coulomb with 9.0ang cutoff
+pair_style	lj/cut/coul/long 10.0 10.0           #LJ with 10.0ang cutoff, Coulomb with 10.0ang cutoff
+pair_modify     tail yes			     #Tail corrections (only for LJ)
+#kspace_style	pppm 1.0e-4                          #PPPM Ewald, relative error in forces
+kspace_style	ewald 1.0e-4                         #Conventional Ewald method , relative error in forces = 1.0e-04
+                                                     #kspace uses tinfoil/conducting boundary conditions by default
+
+#Coulomb Long-range parameters
+#variable        x equal xhi-xlo
+#variable        gewald equal 5.60/$x
+variable   gewald equal 0.285
+kspace_modify   gewald ${gewald}		     #Set the Ewald damping parameter using the same heuristic as the SRSW
+kspace_modify   kmax/ewald 7 7 7                     #kx ky kz = number of kspace vectors for each dimension
+			       			     #By default, LAMMPS will set the Ewald damping parameter and 
+						     # number of k-vectors using a heuristic based on the coulomb cutoff 
+						     # and the desired precision
+
+pair_coeff      1 1 0.15539421659476232 3.16555789   #Oxygen-Oxygen parameters
+pair_coeff	* 2 0.0000 0.0000		     #Hydrogen-(anything) parameters (none)
+
+bond_style	harmonic   			     #Sets the bond type as harmonic
+angle_style	harmonic			     #Sets the triplet bond type as harmonic
+dihedral_style	none				     #SPC/e has no dihedrals (quadruplets)
+improper_style	none				     #SPC/e has no improper quadruplets
+
+bond_coeff	1 5000.00 1.000                      #Oxygen-Hydrogen bond parameters (1~ang)
+angle_coeff	1 500.0 109.47			     #Hydrogen-Oxygen-Hydrogen angle parameters (angle=109.47deg)
+		  				     #NOTE: harmonic moduli do not matter, since the rigid bonds are preserved by SHAKE
+
+#Energy Computation
+run             0				     #Propagate zero MD steps
+variable        e equal epair	   		     #NOTE: epair = full potential energy
+variable        c equal ecoul  			     #Coulombic pair-wise energy
+variable        d equal evdwl-etail  		     #Dispersion pair-wise energy (including any tail)
+variable        l equal elong  			     #Long-range k-space energy
+variable        q equal etail  			     #Dispersion tail correction
+
+#Print the results to screen
+print "Energy of Configuration ${infile}"
+print "Dispersion Energy          = $d"
+print "Disperion Tail Correction  = $q"
+print "Real-space Coulomb Energy  = $c"
+print "k-Space Coulomb Energy     = $l"
+print "Initial Energy (total)     = $e"
+
+#Print without labels
+#print $d
+#print $q
+#print $c
+#print $l
+#print $e

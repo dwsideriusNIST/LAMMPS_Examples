@@ -1,4 +1,4 @@
-The enclosed file (spce_sample_config_periodic#.LAMMPS) is a text file containing a single configuration of SPC/E Molecules, for input to the LAMMPS simulation engine.
+The enclosed files (spce_sample_config_periodic#.LAMMPS) are text files containing single configurations of SPC/E Molecules, for input to the LAMMPS simulation engine.
 
 The file is structured according to LAMMPS specifications for an input configuration per instructions at http://lammps.sandia.gov/doc/read_data.html
 
